@@ -1,5 +1,6 @@
 package chain.of.command;
 
+import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.ws.rs.NotFoundException;
@@ -17,6 +18,8 @@ import java.util.logging.Logger;
 public class DynamicChainOfCommandService {
 
   private final Logger LOGGER = Logger.getLogger(DynamicChainOfCommandService.class.getName());
+  private static final String START_SEQUENTIAL = "startSequential";
+  private static final String START_CONCURRENT = "startConcurrent";
 
   private final Executor executor;
   private final Map<String, Function<String, String>> operations;
@@ -27,17 +30,17 @@ public class DynamicChainOfCommandService {
 	operations.put("a", this::operationA);
 	operations.put("b", this::operationB);
 	operations.put("c", this::operationC);
+	operations.put("d", this::operationD);
   }
 
   public Uni<String> executeSequential(final List<String> operations) {
-	final Uni<String> chainOfCommand = Uni.createFrom().item("start");
+	final Uni<String> chainOfCommand = Uni.createFrom().item(START_SEQUENTIAL);
 	return operations
 		.stream()
 		.map(this::getOperation)
 		.reduce(chainOfCommand, accumulate(), combine())
 		.runSubscriptionOn(executor);
   }
-
 
   private BiFunction<Uni<String>, Function<String, String>, Uni<String>> accumulate() {
 	return (uni, operation) -> uni.onItem().transform(operation);
@@ -82,5 +85,36 @@ public class DynamicChainOfCommandService {
   private String operationC(final String previous) {
 	final String current = "operationC";
 	return operateOn(previous, current);
+  }
+
+  private String operationD(final String previous) {
+	final String current = "operationD";
+	try {
+	  Thread.sleep(1000);
+	} catch (InterruptedException e) {
+	  throw new RuntimeException(e);
+	}
+	return operateOn(previous, current);
+  }
+
+  public Uni<List<String>> executeConcurrent(final List<String> operations) {
+	final List<Multi<String>> eventStream = generateEventStream(operations);
+	return Multi.createBy().merging().streams(eventStream).collect().asList();
+  }
+
+  private List<Multi<String>> generateEventStream(final List<String> operations) {
+	return operations
+		.stream()
+		.map(this::getOperation)
+		.map(this::createMultiFrom)
+		.toList();
+  }
+
+  private Multi<String> createMultiFrom(final Function<String, String> operation) {
+	return Multi.createFrom()
+		.item(START_CONCURRENT)
+		.onItem()
+		.transform(operation)
+		.runSubscriptionOn(executor);
   }
 }

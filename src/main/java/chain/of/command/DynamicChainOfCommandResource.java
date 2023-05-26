@@ -18,10 +18,19 @@ public class DynamicChainOfCommandResource {
   }
 
   @GET
+  @Path("/sequential")
   @Produces(MediaType.TEXT_PLAIN)
-  public Uni<String> execute(@QueryParam("operations") final List<String> operations) {
+  public Uni<String> executeSequential(@QueryParam("operations") final List<String> operations) {
 	return service.executeSequential(operations);
   }
 
+  @GET
+  @Path("/concurrent")
+  @Produces(MediaType.TEXT_PLAIN)
+  public Uni<List<String>> executeConcurrent(
+	  @QueryParam("operations") final List<String> operations
+  ) {
+	return service.executeConcurrent(operations);
+  }
 
 }
