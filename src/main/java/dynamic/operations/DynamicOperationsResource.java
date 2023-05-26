@@ -1,4 +1,4 @@
-package chain.of.command;
+package dynamic.operations;
 
 import io.smallrye.mutiny.Uni;
 import jakarta.ws.rs.GET;
@@ -8,12 +8,12 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import java.util.List;
 
-@Path("/dynamic-chain-of-command")
-public class DynamicChainOfCommandResource {
+@Path("/dynamic-operations")
+public class DynamicOperationsResource {
 
-  private final DynamicChainOfCommandService service;
+  private final DynamicOperationsService service;
 
-  public DynamicChainOfCommandResource(final DynamicChainOfCommandService service) {
+  public DynamicOperationsResource(final DynamicOperationsService service) {
 	this.service = service;
   }
 

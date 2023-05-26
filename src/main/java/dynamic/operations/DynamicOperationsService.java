@@ -1,4 +1,4 @@
-package chain.of.command;
+package dynamic.operations;
 
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
@@ -15,30 +15,29 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @ApplicationScoped
-public class DynamicChainOfCommandService {
+public class DynamicOperationsService {
 
-  private final Logger LOGGER = Logger.getLogger(DynamicChainOfCommandService.class.getName());
+  private final Logger LOGGER = Logger.getLogger(DynamicOperationsService.class.getName());
   private static final String START_SEQUENTIAL = "startSequential";
   private static final String START_CONCURRENT = "startConcurrent";
 
   private final Executor executor;
   private final Map<String, Function<String, String>> operations;
 
-  public DynamicChainOfCommandService(final Executor executor) {
+  public DynamicOperationsService(final Executor executor) {
 	this.executor = executor;
 	this.operations = new HashMap<>();
 	operations.put("a", this::operationA);
 	operations.put("b", this::operationB);
 	operations.put("c", this::operationC);
-	operations.put("d", this::operationD);
   }
 
   public Uni<String> executeSequential(final List<String> operations) {
-	final Uni<String> chainOfCommand = Uni.createFrom().item(START_SEQUENTIAL);
+	final Uni<String> chainOfOperations = Uni.createFrom().item(START_SEQUENTIAL);
 	return operations
 		.stream()
 		.map(this::getOperation)
-		.reduce(chainOfCommand, accumulate(), combine())
+		.reduce(chainOfOperations, accumulate(), combine())
 		.runSubscriptionOn(executor);
   }
 
@@ -84,16 +83,6 @@ public class DynamicChainOfCommandService {
 
   private String operationC(final String previous) {
 	final String current = "operationC";
-	return operateOn(previous, current);
-  }
-
-  private String operationD(final String previous) {
-	final String current = "operationD";
-	try {
-	  Thread.sleep(1000);
-	} catch (InterruptedException e) {
-	  throw new RuntimeException(e);
-	}
 	return operateOn(previous, current);
   }
 
