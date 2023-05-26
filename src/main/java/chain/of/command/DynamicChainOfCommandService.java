@@ -1,12 +1,8 @@
 package chain.of.command;
 
 import io.smallrye.mutiny.Uni;
-import jakarta.ws.rs.GET;
+import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.ws.rs.NotFoundException;
-import jakarta.ws.rs.Path;
-import jakarta.ws.rs.Produces;
-import jakarta.ws.rs.QueryParam;
-import jakarta.ws.rs.core.MediaType;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,15 +13,15 @@ import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-@Path("/dynamic-chain-of-command")
-public class DynamicChainOfCommand {
+@ApplicationScoped
+public class DynamicChainOfCommandService {
 
-  private final Logger LOGGER = Logger.getLogger(DynamicChainOfCommand.class.getName());
+  private final Logger LOGGER = Logger.getLogger(DynamicChainOfCommandService.class.getName());
 
   private final Executor executor;
   private final Map<String, Function<String, String>> operations;
 
-  public DynamicChainOfCommand(final Executor executor) {
+  public DynamicChainOfCommandService(final Executor executor) {
 	this.executor = executor;
 	this.operations = new HashMap<>();
 	operations.put("a", this::operationA);
@@ -33,9 +29,7 @@ public class DynamicChainOfCommand {
 	operations.put("c", this::operationC);
   }
 
-  @GET
-  @Produces(MediaType.TEXT_PLAIN)
-  public Uni<String> execute(@QueryParam("operations") final List<String> operations) {
+  public Uni<String> executeSequential(final List<String> operations) {
 	final Uni<String> chainOfCommand = Uni.createFrom().item("start");
 	return operations
 		.stream()
@@ -43,6 +37,7 @@ public class DynamicChainOfCommand {
 		.reduce(chainOfCommand, accumulate(), combine())
 		.runSubscriptionOn(executor);
   }
+
 
   private BiFunction<Uni<String>, Function<String, String>, Uni<String>> accumulate() {
 	return (uni, operation) -> uni.onItem().transform(operation);
@@ -88,5 +83,4 @@ public class DynamicChainOfCommand {
 	final String current = "operationC";
 	return operateOn(previous, current);
   }
-
 }
