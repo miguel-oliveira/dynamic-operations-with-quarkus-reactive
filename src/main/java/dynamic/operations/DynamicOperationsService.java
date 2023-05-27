@@ -8,8 +8,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
-import java.util.function.BiFunction;
-import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -18,8 +16,8 @@ import java.util.logging.Logger;
 public class DynamicOperationsService {
 
   private final Logger LOGGER = Logger.getLogger(DynamicOperationsService.class.getName());
-  private static final String START_SEQUENTIAL = "startSequential";
-  private static final String START_CONCURRENT = "startConcurrent";
+  private static final String START_SEQUENTIAL = "sequential";
+  private static final String START_CONCURRENT = "concurrent";
 
   private final Executor executor;
   private final Map<String, Function<String, String>> operations;
@@ -33,22 +31,15 @@ public class DynamicOperationsService {
   }
 
   public Uni<String> executeSequential(final List<String> operations) {
-	final Uni<String> chainOfOperations = Uni.createFrom().item(START_SEQUENTIAL);
+	final Function<String, String> chainOfOperations = buildChainOfOperations(operations);
+	return executeSequential(chainOfOperations);
+  }
+
+  private Function<String, String> buildChainOfOperations(final List<String> operations) {
 	return operations
 		.stream()
 		.map(this::getOperation)
-		.reduce(chainOfOperations, accumulate(), combine())
-		.runSubscriptionOn(executor);
-  }
-
-  private BiFunction<Uni<String>, Function<String, String>, Uni<String>> accumulate() {
-	return (uni, operation) -> uni.onItem().transform(operation);
-  }
-
-  private BinaryOperator<Uni<String>> combine() {
-	return (u1, u2) -> {
-	  throw new IllegalArgumentException("Parallel operation execution not available!");
-	};
+		.reduce(Function.identity(), Function::andThen);
   }
 
   private Function<String, String> getOperation(final String operation) {
@@ -60,6 +51,15 @@ public class DynamicOperationsService {
 	if (!operations.containsKey(operation)) {
 	  throw new NotFoundException(String.format("Operation %s not found!", operation));
 	}
+  }
+
+  private Uni<String> executeSequential(final Function<String, String> chainOfOperations) {
+	return Uni
+		.createFrom()
+		.item(chainOfOperations)
+		.onItem()
+		.transform(start -> start.apply(START_SEQUENTIAL))
+		.runSubscriptionOn(executor);
   }
 
   private String operationA(final String previous) {
@@ -87,11 +87,11 @@ public class DynamicOperationsService {
   }
 
   public Uni<List<String>> executeConcurrent(final List<String> operations) {
-	final List<Multi<String>> eventStream = generateEventStream(operations);
-	return Multi.createBy().merging().streams(eventStream).collect().asList();
+	final List<Multi<String>> operationEventStream = generateOperationEventStream(operations);
+	return Multi.createBy().merging().streams(operationEventStream).collect().asList();
   }
 
-  private List<Multi<String>> generateEventStream(final List<String> operations) {
+  private List<Multi<String>> generateOperationEventStream(final List<String> operations) {
 	return operations
 		.stream()
 		.map(this::getOperation)
