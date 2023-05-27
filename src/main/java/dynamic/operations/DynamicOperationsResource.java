@@ -11,17 +11,17 @@ import java.util.List;
 @Path("/dynamic-operations")
 public class DynamicOperationsResource {
 
-  private final DynamicOperationsService service;
+  private final DynamicOperationsExecutor executor;
 
-  public DynamicOperationsResource(final DynamicOperationsService service) {
-	this.service = service;
+  public DynamicOperationsResource(final DynamicOperationsExecutor executor) {
+	this.executor = executor;
   }
 
   @GET
   @Path("/sequential")
   @Produces(MediaType.TEXT_PLAIN)
   public Uni<String> executeSequential(@QueryParam("operations") final List<String> operations) {
-	return service.executeSequential(operations);
+	return executor.executeSequential(operations);
   }
 
   @GET
@@ -30,7 +30,7 @@ public class DynamicOperationsResource {
   public Uni<List<String>> executeConcurrent(
 	  @QueryParam("operations") final List<String> operations
   ) {
-	return service.executeConcurrent(operations);
+	return executor.executeConcurrent(operations);
   }
 
 }
