@@ -1,11 +1,10 @@
 package dynamic.operations;
 
-import io.smallrye.mutiny.Multi;
-import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.util.List;
-import java.util.concurrent.Executor;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class DynamicOperationsExecutor {
@@ -14,49 +13,31 @@ public class DynamicOperationsExecutor {
   private static final String START_CONCURRENT = "concurrent";
 
   private final OperationsService operationsService;
-  private final Executor executor;
 
-  public DynamicOperationsExecutor(
-	  final OperationsService operationsService,
-	  final Executor executor
-  ) {
+  public DynamicOperationsExecutor(final OperationsService operationsService) {
 	this.operationsService = operationsService;
-	this.executor = executor;
-
   }
 
-  public Uni<String> executeSequential(final List<String> operations) {
+  public String executeSequential(final List<String> operations) {
 	final Function<String, String> chainOfOperations = operationsService.buildChainOf(operations);
-	return executeSequential(chainOfOperations);
+	return chainOfOperations.apply(START_SEQUENTIAL);
   }
 
-  private Uni<String> executeSequential(final Function<String, String> chainOfOperations) {
-	return Uni
-		.createFrom()
-		.item(chainOfOperations)
-		.onItem()
-		.transform(start -> start.apply(START_SEQUENTIAL))
-		.runSubscriptionOn(executor);
+  public List<String> executeConcurrent(final List<String> operations) {
+	final List<Function<String, String>> operationList = get(operations);
+
+	final List<CompletableFuture<String>> futures =
+		operationList.stream()
+			.map(f -> CompletableFuture.supplyAsync(() -> f.apply(START_CONCURRENT))).toList();
+
+	return futures.stream().map(CompletableFuture::join).collect(Collectors.toList());
   }
 
-  public Uni<List<String>> executeConcurrent(final List<String> operations) {
-	final List<Multi<String>> operationEventStream = generateEventStreamOf(operations);
-	return Multi.createBy().merging().streams(operationEventStream).collect().asList();
-  }
-
-  private List<Multi<String>> generateEventStreamOf(final List<String> operations) {
+  private List<Function<String, String>> get(final List<String> operations) {
 	return operations
 		.stream()
 		.map(operationsService::get)
-		.map(this::createMultiFrom)
 		.toList();
   }
 
-  private Multi<String> createMultiFrom(final Function<String, String> operation) {
-	return Multi.createFrom()
-		.item(START_CONCURRENT)
-		.onItem()
-		.transform(operation)
-		.runSubscriptionOn(executor);
-  }
 }
