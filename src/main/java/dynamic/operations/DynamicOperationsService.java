@@ -4,6 +4,9 @@ import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.ws.rs.NotFoundException;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,8 +52,16 @@ public class DynamicOperationsService {
 
   private void validate(final String operation) {
 	if (!operations.containsKey(operation)) {
-	  throw new NotFoundException(String.format("Operation %s not found!", operation));
+	  throw notFoundException(operation);
 	}
+  }
+
+  private static WebApplicationException notFoundException(final String operation) {
+	final String errorMessage = String.format("Operation \"%s\" not found!", operation);
+	return new NotFoundException(
+		errorMessage,
+		Response.status(Status.NOT_FOUND).entity(errorMessage).build()
+	);
   }
 
   private Uni<String> executeSequential(final Function<String, String> chainOfOperations) {
