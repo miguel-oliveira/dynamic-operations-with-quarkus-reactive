@@ -1,6 +1,5 @@
 package dynamic.operations;
 
-import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.util.List;
@@ -22,7 +21,6 @@ public class DynamicOperationsExecutor {
   ) {
 	this.operationsService = operationsService;
 	this.executor = executor;
-
   }
 
   public Uni<String> executeSequential(final List<String> operations) {
@@ -40,20 +38,20 @@ public class DynamicOperationsExecutor {
   }
 
   public Uni<List<String>> executeConcurrent(final List<String> operations) {
-	final List<Multi<String>> operationEventStream = generateEventStreamOf(operations);
-	return Multi.createBy().merging().streams(operationEventStream).collect().asList();
+	final List<Uni<String>> operationEventStream = generateEventStreamOf(operations);
+	return Uni.join().all(operationEventStream).andCollectFailures();
   }
 
-  private List<Multi<String>> generateEventStreamOf(final List<String> operations) {
+  private List<Uni<String>> generateEventStreamOf(final List<String> operations) {
 	return operations
 		.stream()
 		.map(operationsService::get)
-		.map(this::createMultiFrom)
+		.map(this::createUniFrom)
 		.toList();
   }
 
-  private Multi<String> createMultiFrom(final Function<String, String> operation) {
-	return Multi.createFrom()
+  private Uni<String> createUniFrom(final Function<String, String> operation) {
+	return Uni.createFrom()
 		.item(START_CONCURRENT)
 		.onItem()
 		.transform(operation)
