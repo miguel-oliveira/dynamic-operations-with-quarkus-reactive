@@ -1,14 +1,15 @@
 package dynamic.operations;
 
+import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
 import java.text.MessageFormat;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -18,23 +19,25 @@ public class OperationsService {
 
   private final Logger LOGGER = Logger.getLogger(OperationsService.class.getName());
 
-  private final Map<String, Function<String, String>> operations;
+  private final Map<String, Function<String, Uni<String>>> operations;
 
   public OperationsService() {
-	this.operations = new HashMap<>();
-	operations.put("a", this::operationA);
-	operations.put("b", this::operationB);
-	operations.put("c", this::operationC);
+	this.operations = Map.of(
+		"a", this::operationA,
+		"b", this::operationB,
+		"c", this::operationC
+	);
   }
 
-  Function<String, String> buildChainOf(final List<String> operations) {
+  Function<String, Uni<String>> buildChainOf(final List<String> operations) {
+	final Function<String, Uni<String>> start = s -> Uni.createFrom().item(s);
 	return operations
 		.stream()
 		.map(this::get)
-		.reduce(Function.identity(), Function::andThen);
+		.reduce(start, chain());
   }
 
-  Function<String, String> get(final String operation) {
+  Function<String, Uni<String>> get(final String operation) {
 	validate(operation);
 	return operations.get(operation);
   }
@@ -53,28 +56,38 @@ public class OperationsService {
 	);
   }
 
-  private String operationA(final String previous) {
+  private static BinaryOperator<Function<String, Uni<String>>> chain() {
+	return (current, next) -> value -> current.apply(value).chain(next::apply);
+  }
+
+  private Uni<String> operationA(final String previous) {
 	final String current = "operationA";
 	return operateOn(previous, current);
   }
 
-  private String operateOn(final String previous, final String current) {
-	final String message = operationMessage(previous, current);
+  private Uni<String> operateOn(final String previous, final String current) {
+	return operationMessage(previous, current)
+		.onItem()
+		.transformToUni(this::logAndReturn);
+  }
+
+  private Uni<String> operationMessage(final String previous, final String current) {
+	return Uni.createFrom().item(MessageFormat.format("{0} -> {1}", previous, current));
+  }
+
+  private Uni<String> logAndReturn(final String message) {
 	LOGGER.log(Level.INFO, message);
-	return message;
+	return Uni.createFrom().item(message);
   }
 
-  private String operationMessage(final String previous, final String current) {
-	return MessageFormat.format("{0} -> {1}", previous, current);
-  }
-
-  private String operationB(final String previous) {
+  private Uni<String> operationB(final String previous) {
 	final String current = "operationB";
 	return operateOn(previous, current);
   }
 
-  private String operationC(final String previous) {
+  private Uni<String> operationC(final String previous) {
 	final String current = "operationC";
 	return operateOn(previous, current);
   }
+
 }

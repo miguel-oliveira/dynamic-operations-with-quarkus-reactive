@@ -1,10 +1,12 @@
 package dynamic.operations;
 
+import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class DynamicOperationsExecutor {
@@ -24,37 +26,33 @@ public class DynamicOperationsExecutor {
   }
 
   public Uni<String> executeSequential(final List<String> operations) {
-	final Function<String, String> chainOfOperations = operationsService.buildChainOf(operations);
-	return executeSequential(chainOfOperations);
+	final Function<String, Uni<String>> chain = operationsService.buildChainOf(operations);
+	return executeSequential(chain);
   }
 
-  private Uni<String> executeSequential(final Function<String, String> chainOfOperations) {
-	return Uni
-		.createFrom()
-		.item(chainOfOperations)
-		.onItem()
-		.transform(start -> start.apply(START_SEQUENTIAL))
-		.runSubscriptionOn(executor);
+  private Uni<String> executeSequential(final Function<String, Uni<String>> chainOfOperations) {
+	return chainOfOperations.apply(START_SEQUENTIAL).runSubscriptionOn(executor);
   }
 
   public Uni<List<String>> executeConcurrent(final List<String> operations) {
-	final List<Uni<String>> operationEventStream = generateEventStreamOf(operations);
-	return Uni.join().all(operationEventStream).andCollectFailures();
+	final List<Multi<String>> operationEventStream = generateEventStreamOf(operations);
+	return Multi.createBy().merging().streams(operationEventStream).collect().asList();
   }
 
-  private List<Uni<String>> generateEventStreamOf(final List<String> operations) {
+  private List<Multi<String>> generateEventStreamOf(final List<String> operations) {
 	return operations
 		.stream()
 		.map(operationsService::get)
-		.map(this::createUniFrom)
-		.toList();
+		.map(this::createMultiFrom)
+		.collect(Collectors.toList());
   }
 
-  private Uni<String> createUniFrom(final Function<String, String> operation) {
-	return Uni.createFrom()
+  private Multi<String> createMultiFrom(final Function<String, Uni<String>> operation) {
+	return Multi.createFrom()
 		.item(START_CONCURRENT)
 		.onItem()
-		.transform(operation)
+		.transformToUni(operation::apply)
+		.concatenate()
 		.runSubscriptionOn(executor);
   }
 }
