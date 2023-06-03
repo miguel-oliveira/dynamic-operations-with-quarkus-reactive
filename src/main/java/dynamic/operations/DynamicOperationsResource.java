@@ -7,15 +7,13 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import java.util.List;
+import lombok.AllArgsConstructor;
 
 @Path("/dynamic-operations")
+@AllArgsConstructor
 public class DynamicOperationsResource {
 
   private final DynamicOperationsExecutor executor;
-
-  public DynamicOperationsResource(final DynamicOperationsExecutor executor) {
-    this.executor = executor;
-  }
 
   @GET
   @Path("/sequential")

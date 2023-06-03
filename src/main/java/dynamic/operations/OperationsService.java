@@ -11,13 +11,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @ApplicationScoped
 public class OperationsService {
-
-  private final Logger LOGGER = Logger.getLogger(OperationsService.class.getName());
 
   private final Map<String, Function<String, Uni<String>>> operations;
 
@@ -36,7 +34,7 @@ public class OperationsService {
 
   private Uni<String> operateOn(final String previous, final String current) {
     final String message = MessageFormat.format("{0} -> {1}", previous, current);
-    LOGGER.log(Level.INFO, message);
+    log.info(message);
     return Uni.createFrom().item(message);
   }
 
