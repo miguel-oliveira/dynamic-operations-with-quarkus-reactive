@@ -7,16 +7,16 @@ import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
 import java.text.MessageFormat;
-import java.util.List;
+import java.time.Duration;
 import java.util.Map;
-import java.util.function.BinaryOperator;
 import java.util.function.Function;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
 @ApplicationScoped
 public class OperationsService {
 
+  private static final Duration DELAY_A = Duration.ofMillis(3000);
+  private static final Duration DELAY_B = Duration.ofMillis(2000);
+  private static final Duration DELAY_C = Duration.ofMillis(1000);
   private final Map<String, Function<String, Uni<String>>> operations;
 
   public OperationsService() {
@@ -28,29 +28,26 @@ public class OperationsService {
   }
 
   private Uni<String> operationA(final String previous) {
-    final String current = "operationA";
-    return operateOn(previous, current);
+    final String current = "A";
+    return operateOn(previous, current, DELAY_A);
   }
 
-  private Uni<String> operateOn(final String previous, final String current) {
-    final String message = MessageFormat.format("{0} -> {1}", previous, current);
-    log.info(message);
-    return Uni.createFrom().item(message);
+  private Uni<String> operateOn(final String previous, final String current, final Duration delay) {
+    return Uni.createFrom()
+        .item(() -> MessageFormat.format("{0} -> {1}", previous, current))
+        .onItem()
+        .delayIt().by(delay)
+        .log();
   }
 
   private Uni<String> operationB(final String previous) {
-    final String current = "operationB";
-    return operateOn(previous, current);
+    final String current = "B";
+    return operateOn(previous, current, DELAY_B);
   }
 
   private Uni<String> operationC(final String previous) {
-    final String current = "operationC";
-    return operateOn(previous, current);
-  }
-
-  Function<String, Uni<String>> buildChainOf(final List<String> operations) {
-    final Function<String, Uni<String>> start = s -> Uni.createFrom().item(s);
-    return operations.stream().map(this::get).reduce(start, chain());
+    final String current = "C";
+    return operateOn(previous, current, DELAY_C);
   }
 
   Function<String, Uni<String>> get(final String operation) {
@@ -70,10 +67,6 @@ public class OperationsService {
         errorMessage,
         Response.status(Status.NOT_FOUND).entity(errorMessage).build()
     );
-  }
-
-  private BinaryOperator<Function<String, Uni<String>>> chain() {
-    return (current, next) -> value -> current.apply(value).chain(next::apply);
   }
 
 }
