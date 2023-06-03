@@ -14,23 +14,23 @@ public class DynamicOperationsResource {
   private final DynamicOperationsExecutor executor;
 
   public DynamicOperationsResource(final DynamicOperationsExecutor executor) {
-	this.executor = executor;
+    this.executor = executor;
   }
 
   @GET
   @Path("/sequential")
   @Produces(MediaType.TEXT_PLAIN)
   public Uni<String> executeSequential(@QueryParam("operations") final List<String> operations) {
-	return executor.executeSequential(operations);
+    return executor.executeSequential(operations);
   }
 
   @GET
   @Path("/concurrent")
   @Produces(MediaType.TEXT_PLAIN)
   public Uni<List<String>> executeConcurrent(
-	  @QueryParam("operations") final List<String> operations
+      @QueryParam("operations") final List<String> operations
   ) {
-	return executor.executeConcurrent(operations);
+    return executor.executeConcurrent(operations);
   }
 
 }
