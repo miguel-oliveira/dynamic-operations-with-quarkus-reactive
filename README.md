@@ -4,7 +4,12 @@ Simple application showcasing dynamic execution of operations using quarkus reac
 
 ## Usage
 
-- Run the application
+- Build and run the application using maven:
+
+````shell
+mvn quarkus:dev
+````
+
 - Access http://localhost:8080/swagger
 - Operation names must be passed as query parameters
 - Available operations are "a", "b" and "c"
